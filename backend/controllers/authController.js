@@ -49,7 +49,8 @@ const register = async (req, res) => {
           name: user.name,
           email: user.email,
           role: user.role,
-          phone: user.phone
+          phone: user.phone,
+          department_id: user.department_id
         },
         token
       }
@@ -62,11 +63,14 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
   try {
+    console.log('Login function called with body:', req.body);
     const { email, password } = req.body;
 
     // Check if user exists
     const user = await User.findByEmail(email);
+    console.log('User found:', user ? 'Yes' : 'No', 'User data:', user);
     if (!user) {
+      console.log('User not found, returning 404');
       return res.status(404).json({ 
         message: 'User not found' 
       });
@@ -74,7 +78,9 @@ const login = async (req, res) => {
 
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
+    console.log('Password match:', isMatch ? 'Yes' : 'No');
     if (!isMatch) {
+      console.log('Invalid password, returning 401');
       return res.status(401).json({ 
         message: 'Invalid password' 
       });
@@ -82,8 +88,9 @@ const login = async (req, res) => {
 
     // Generate token
     const token = generateToken(user.id);
+    console.log('Token generated successfully');
 
-    res.json({
+    const response = {
       success: true,
       message: 'Login successful',
       data: {
@@ -92,13 +99,17 @@ const login = async (req, res) => {
           name: user.name,
           email: user.email,
           role: user.role,
-          phone: user.phone
+          phone: user.phone,
+          department_id: user.department_id
         },
         token
       }
-    });
+    };
+    
+    console.log('Sending response:', response);
+    res.json(response);
   } catch (error) {
-    console.error(error);
+    console.error('Login error:', error);
     res.status(500).json({ message: 'Server error. Please try again later.' });
   }
 };

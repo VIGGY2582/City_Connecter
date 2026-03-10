@@ -126,7 +126,7 @@ const Login = () => {
               onChange={handleChange}
             />
             <div className="form-text">
-              Try: electricity@cityconnector.com
+              Enter your registered email address
             </div>
           </div>
           <div className="mb-3">
@@ -145,7 +145,7 @@ const Login = () => {
               onChange={handleChange}
             />
             <div className="form-text">
-              Default password: <strong>password</strong>
+              Enter your password
             </div>
           </div>
 
@@ -167,18 +167,6 @@ const Login = () => {
           </div>
         </form>
         
-        {/* Department Login Help */}
-        <div className="mt-4 p-3 bg-light rounded">
-          <h6 className="mb-2">🔌 Department Login:</h6>
-          <div className="small text-muted">
-            <div><strong>Electricity:</strong> electricity@cityconnector.com</div>
-            <div><strong>Public Works:</strong> publicworks@cityconnector.com</div>
-            <div><strong>Sanitation:</strong> sanitation@cityconnector.com</div>
-            <div><strong>Traffic:</strong> traffic@cityconnector.com</div>
-            <div><strong>Water:</strong> water@cityconnector.com</div>
-            <div className="mt-2"><strong>Password:</strong> password</div>
-          </div>
-        </div>
       </div>
     </div>
   );
