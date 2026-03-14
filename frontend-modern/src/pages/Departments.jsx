@@ -27,7 +27,7 @@ const Departments = () => {
       setDepartments(response.data.data || []);
     } catch (error) {
       toast.error('Failed to fetch departments');
-      setDepartments([]); // Set empty array if error
+      setDepartments([]); // Set empty array if error - no dummy data
     } finally {
       setLoading(false);
     }

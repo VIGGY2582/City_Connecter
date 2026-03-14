@@ -328,3 +328,18 @@ body {
 .border-radius-custom {
   border-radius: 12px;
 }
+
+/* Notification Styles */
+.notification-item:hover {
+  background-color: rgba(52, 152, 219, 0.05);
+}
+
+.pulse {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
