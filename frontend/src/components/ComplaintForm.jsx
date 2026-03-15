@@ -1,234 +1,176 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { complaintAPI, departmentAPI } from '../services/api';
+import { showToast } from '../pages/Dashboard';
+
+const CATEGORIES = [
+  'Public Works','Sanitation','Traffic','Water Supply','Electricity',
+  'Street Lighting','Garbage Collection','Road Maintenance','Parks and Recreation','Other',
+];
+const PRIORITIES = ['Low', 'Medium', 'High'];
 
 const ComplaintForm = ({ onComplaintCreated }) => {
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: 'Public Works',
-    location: '',
-    priority: 'Medium',
+    title: '', description: '', category: 'Public Works', location: '', priority: 'Medium',
   });
   const [imageFile, setImageFile] = useState(null);
-  const [departments, setDepartments] = useState([]);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState(false);
+  const fileRef = useRef();
 
-  const categories = [
-    'Public Works',
-    'Sanitation',
-    'Traffic',
-    'Water Supply',
-    'Electricity',
-    'Street Lighting',
-    'Garbage Collection',
-    'Road Maintenance',
-    'Parks and Recreation',
-    'Other',
-  ];
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  const priorities = ['Low', 'Medium', 'High'];
-
-  React.useEffect(() => {
-    loadDepartments();
-  }, []);
-
-  const loadDepartments = async () => {
-    try {
-      const response = await departmentAPI.getAll();
-      setDepartments(response.data.data);
-    } catch (error) {
-      console.error('Error loading departments:', error);
-    }
+  const handleFile = (file) => {
+    if (!file || !file.type.startsWith('image/')) return;
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setImagePreview(reader.result);
+    reader.readAsDataURL(file);
   };
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleImageChange = (e) => {
-    setImageFile(e.target.files[0]);
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    handleFile(e.dataTransfer.files[0]);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
-    const formDataToSend = new FormData();
-    Object.keys(formData).forEach(key => {
-      formDataToSend.append(key, formData[key]);
-    });
-    
-    if (imageFile) {
-      formDataToSend.append('image', imageFile);
+    if (!formData.title.trim() || !formData.description.trim() || !formData.location.trim()) {
+      showToast('Please fill in all required fields.', 'error');
+      return;
     }
-
+    setLoading(true);
+    const fd = new FormData();
+    Object.keys(formData).forEach(k => fd.append(k, formData[k]));
+    if (imageFile) fd.append('image', imageFile);
     try {
-      await complaintAPI.create(formDataToSend);
-      setSuccess('Complaint submitted successfully!');
-      setFormData({
-        title: '',
-        description: '',
-        category: 'Public Works',
-        location: '',
-        priority: 'Medium',
-      });
-      setImageFile(null);
-      
-      if (onComplaintCreated) {
-        onComplaintCreated();
-      }
-    } catch (error) {
-      setError(error.response?.data?.message || 'Failed to submit complaint');
+      await complaintAPI.create(fd);
+      setSuccess(true);
+      showToast('Complaint submitted successfully! 🎉', 'success');
+      setTimeout(() => {
+        setSuccess(false);
+        setFormData({ title: '', description: '', category: 'Public Works', location: '', priority: 'Medium' });
+        setImageFile(null); setImagePreview(null);
+        if (onComplaintCreated) onComplaintCreated();
+      }, 2000);
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to submit complaint.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  if (success) {
+    return (
+      <div className="text-center" style={{ padding: 80 }}>
+        <div style={{ fontSize: '4rem', marginBottom: 16 }}>🎉</div>
+        <h2 className="grad-text" style={{ fontSize: '1.6rem', fontWeight: 800 }}>Complaint Submitted!</h2>
+        <p style={{ color: 'var(--clr-text-2)' }}>Your complaint has been received. You'll be redirected shortly.</p>
+        <div className="spinner spinner-lg" style={{ margin: '24px auto 0' }} />
+      </div>
+    );
+  }
+
   return (
-    <div className="container">
-      <div className="row justify-content-center">
-        <div className="col-md-8">
-          <div className="card shadow">
-            <div className="card-body">
-              <h2 className="card-title h4">Submit New Complaint</h2>
-              
-              {error && (
-                <div className="alert alert-danger">
-                  {error}
-                </div>
-              )}
-              
-              {success && (
-                <div className="alert alert-success">
-                  {success}
-                </div>
-              )}
+    <div style={{ maxWidth: 720, margin: '0 auto' }}>
+      <div className="glass-card p-6">
+        <h2 style={{ margin: '0 0 6px', fontWeight: 800, fontSize: '1.3rem' }}>
+          📝 Submit a Complaint
+        </h2>
+        <p style={{ margin: '0 0 28px', color: 'var(--clr-text-2)', fontSize: '0.875rem' }}>
+          Describe the issue in detail so we can address it quickly.
+        </p>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label htmlFor="title" className="form-label">
-                    Complaint Title *
-                  </label>
-                  <input
-                    type="text"
-                    id="title"
-                    name="title"
-                    required
-                    className="form-control"
-                    value={formData.title}
-                    onChange={handleChange}
-                    placeholder="Brief title of your complaint"
-                  />
-                </div>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="inp-label">Complaint Title *</label>
+            <input className="inp" type="text" name="title" value={formData.title}
+              onChange={handleChange} placeholder="Brief title of your complaint" required />
+          </div>
 
-                <div>
-                  <label htmlFor="description" className="form-label">
-                    Detailed Description *
-                  </label>
-                  <textarea
-                    id="description"
-                    name="description"
-                    required
-                    rows={4}
-                    className="form-control"
-                    value={formData.description}
-                    onChange={handleChange}
-                    placeholder="Provide detailed information about your complaint"
-                  />
-                </div>
+          <div className="form-group">
+            <label className="inp-label">Detailed Description *</label>
+            <textarea className="inp" name="description" rows={4} value={formData.description}
+              onChange={handleChange} placeholder="Provide as much detail as possible..."
+              style={{ resize: 'vertical' }} required />
+          </div>
 
-                <div className="row">
-                  <div className="col-md-6">
-                    <label htmlFor="category" className="form-label">
-                      Category *
-                    </label>
-                    <select
-                      id="category"
-                      name="category"
-                      required
-                      className="form-select"
-                      value={formData.category}
-                      onChange={handleChange}
-                    >
-                      {categories.map(category => (
-                        <option key={category} value={category}>{category}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-md-6">
-                    <label htmlFor="priority" className="form-label">
-                      Priority *
-                    </label>
-                    <select
-                      id="priority"
-                      name="priority"
-                      required
-                      className="form-select"
-                      value={formData.priority}
-                      onChange={handleChange}
-                    >
-                      {priorities.map(priority => (
-                        <option key={priority} value={priority}>{priority}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="location" className="form-label">
-                    Location *
-                  </label>
-                  <input
-                    type="text"
-                    id="location"
-                    name="location"
-                    required
-                    className="form-control"
-                    value={formData.location}
-                    onChange={handleChange}
-                    placeholder="Specific address or location of issue"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="image" className="form-label">
-                    Upload Image (Optional)
-                  </label>
-                  <input
-                    type="file"
-                    id="image"
-                    name="image"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="form-control"
-                  />
-                  {imageFile && (
-                    <p className="form-text text-muted">
-                      Selected file: {imageFile.name}
-                    </p>
-                  )}
-                </div>
-
-                <div className="d-flex justify-content-end">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="btn btn-primary"
-                  >
-                    {loading ? 'Submitting...' : 'Submit Complaint'}
-                  </button>
-                </div>
-              </form>
+          <div className="grid-2">
+            <div className="form-group">
+              <label className="inp-label">Category *</label>
+              <select className="form-select-dark" name="category" value={formData.category} onChange={handleChange}>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="inp-label">Priority *</label>
+              <select className="form-select-dark" name="priority" value={formData.priority} onChange={handleChange}>
+                {PRIORITIES.map(p => (
+                  <option key={p} value={p}>
+                    {p === 'Low' ? '🟢 Low' : p === 'Medium' ? '🟡 Medium' : '🔴 High'}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
-        </div>
+
+          <div className="form-group">
+            <label className="inp-label">Location *</label>
+            <div className="inp-icon-wrap">
+              <span className="inp-icon">📍</span>
+              <input className="inp" type="text" name="location" value={formData.location}
+                onChange={handleChange} placeholder="Specific address or location of issue" required />
+            </div>
+          </div>
+
+          {/* Drop Zone */}
+          <div className="form-group">
+            <label className="inp-label">Photo Evidence (Optional)</label>
+            <div
+              className={`drop-zone ${dragOver ? 'drag-over' : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              onClick={() => fileRef.current?.click()}
+            >
+              {imagePreview ? (
+                <div>
+                  <img src={imagePreview} alt="Preview"
+                    style={{ maxHeight: 160, borderRadius: 'var(--radius-md)', marginBottom: 10 }} />
+                  <p style={{ color: 'var(--clr-text-2)', fontSize: '0.82rem', margin: 0 }}>
+                    {imageFile?.name} — Click to change
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>📸</div>
+                  <p style={{ color: 'var(--clr-text-2)', margin: 0, fontSize: '0.9rem' }}>
+                    Drag & drop an image here, or <span style={{ color: 'var(--clr-primary-l)', fontWeight: 600 }}>click to browse</span>
+                  </p>
+                  <p style={{ color: 'var(--clr-text-3)', margin: '4px 0 0', fontSize: '0.78rem' }}>
+                    Supports: JPG, PNG, GIF, WEBP
+                  </p>
+                </div>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+                onChange={(e) => handleFile(e.target.files[0])} />
+            </div>
+          </div>
+
+          <div className="flex" style={{ justifyContent: 'flex-end', gap: 12, marginTop: 8 }}>
+            <button type="button" className="btn-glass" onClick={() => {
+              setFormData({ title: '', description: '', category: 'Public Works', location: '', priority: 'Medium' });
+              setImageFile(null); setImagePreview(null);
+            }}>
+              Reset
+            </button>
+            <button type="submit" className="btn-primary-glow" disabled={loading} style={{ minWidth: 160 }}>
+              {loading ? <><span className="spinner" /> &nbsp;Submitting...</> : '📤 Submit Complaint'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

@@ -3,170 +3,124 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [showError, setShowError] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const { login, loading } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-    if (showError) {
-      setShowError(false);
-      setError('');
-    }
-    if (showSuccess) {
-      setShowSuccess(false);
-      setSuccess('');
-    }
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
-    setShowError(false);
-    setShowSuccess(false);
-    
     if (!formData.email || !formData.password) {
-      setError('❌ Please enter both email and password.');
-      setShowError(true);
+      setError('Please enter both email and password.');
       return;
     }
-    
-    console.log('Submitting login with:', { email: formData.email, password: '***' });
-    
     const result = await login(formData);
-    console.log('Login result:', result);
-    
     if (result.success) {
-      setSuccess('✅ Login successful! Redirecting to dashboard...');
-      setShowSuccess(true);
-      
-      // Redirect after 1.5 seconds
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1500);
+      navigate('/dashboard');
     } else {
-      setError(result.error);
-      setShowError(true);
+      setError(result.error || 'Login failed. Please try again.');
     }
   };
 
   return (
-    <div className="min-h-screen d-flex align-items-center justify-content-center bg-light py-4">
-      <div className="w-100" style={{ maxWidth: '400px' }}>
-        <div>
-          <h2 className="text-center mb-4 h3">Sign in to City Connector</h2>
-          <p className="text-center text-muted small">
-            Or{' '}
-            <Link
-              to="/register"
-              className="text-primary text-decoration-none"
-            >
-              create a new account
-            </Link>
+    <div className="auth-bg">
+      <div className="auth-card">
+        {/* Logo */}
+        <div className="text-center mb-6">
+          <div style={{
+            width: 60, height: 60,
+            background: 'var(--grad-primary)',
+            borderRadius: 'var(--radius-lg)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 16px',
+            fontSize: '1.8rem',
+            boxShadow: 'var(--shadow-glow-p)',
+          }}>🏙️</div>
+          <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800 }}>
+            <span className="grad-text">City Connector</span>
+          </h1>
+          <p style={{ margin: '6px 0 0', color: 'var(--clr-text-2)', fontSize: '0.9rem' }}>
+            Welcome back! Sign in to continue.
           </p>
         </div>
-        
-        {/* Success Alert Popup */}
-        {showSuccess && success && (
-          <div className="alert alert-success alert-dismissible fade show" role="alert">
-            <div className="d-flex align-items-center">
-              <i className="bi bi-check-circle-fill me-2"></i>
-              <div>{success}</div>
-            </div>
-            <button 
-              type="button" 
-              className="btn-close" 
-              onClick={() => setShowSuccess(false)}
-              aria-label="Close"
-            ></button>
+
+        {/* Error */}
+        {error && (
+          <div className="toast error" style={{ position: 'static', minWidth: 0, marginBottom: 16, animation: 'none' }}>
+            <span>⚠️</span> {error}
           </div>
         )}
-        
-        {/* Error Alert Popup */}
-        {showError && error && (
-          <div className="alert alert-danger alert-dismissible fade show" role="alert">
-            <div className="d-flex align-items-center">
-              <i className="bi bi-exclamation-triangle-fill me-2"></i>
-              <div>{error}</div>
-            </div>
-            <button 
-              type="button" 
-              className="btn-close" 
-              onClick={() => setShowError(false)}
-              aria-label="Close"
-            ></button>
-          </div>
-        )}
-        
-        <form className="mt-4" onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label htmlFor="email" className="form-label">
-              Email address
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              className={`form-control ${showError ? 'is-invalid' : ''} ${showSuccess ? 'is-valid' : ''}`}
-              placeholder="Email address"
-              value={formData.email}
-              onChange={handleChange}
-            />
-            <div className="form-text">
-              Enter your registered email address
-            </div>
-          </div>
-          <div className="mb-3">
-            <label htmlFor="password" className="form-label">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              className={`form-control ${showError ? 'is-invalid' : ''} ${showSuccess ? 'is-valid' : ''}`}
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleChange}
-            />
-            <div className="form-text">
-              Enter your password
+
+        {/* Form */}
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="inp-label">Email Address</label>
+            <div className="inp-icon-wrap">
+              <span className="inp-icon">✉️</span>
+              <input
+                className="inp"
+                type="email"
+                name="email"
+                autoComplete="email"
+                placeholder="you@email.com"
+                value={formData.email}
+                onChange={handleChange}
+              />
             </div>
           </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary w-100"
-            >
-              {loading ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                  Signing in...
-                </>
-              ) : (
-                'Sign in'
-              )}
-            </button>
+          <div className="form-group">
+            <label className="inp-label">Password</label>
+            <div className="inp-icon-wrap" style={{ position: 'relative' }}>
+              <span className="inp-icon">🔒</span>
+              <input
+                className="inp"
+                type={showPass ? 'text' : 'password'}
+                name="password"
+                autoComplete="current-password"
+                placeholder="Your password"
+                value={formData.password}
+                onChange={handleChange}
+                style={{ paddingRight: 44 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass(!showPass)}
+                style={{
+                  position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem',
+                  color: 'var(--clr-text-3)',
+                }}
+              >{showPass ? '🙈' : '👁️'}</button>
+            </div>
           </div>
+
+          <button
+            type="submit"
+            className="btn-primary-glow w-full"
+            style={{ marginTop: 8, padding: '13px', fontSize: '0.95rem' }}
+            disabled={loading}
+          >
+            {loading ? <><span className="spinner" /> &nbsp;Signing in...</> : '🚀 Sign In'}
+          </button>
         </form>
-        
+
+        {/* Footer */}
+        <div className="text-center mt-6" style={{ borderTop: '1px solid var(--clr-border)', paddingTop: 20 }}>
+          <p style={{ margin: 0, color: 'var(--clr-text-2)', fontSize: '0.88rem' }}>
+            Don't have an account?{' '}
+            <Link to="/register" style={{ color: 'var(--clr-primary-l)', fontWeight: 600, textDecoration: 'none' }}>
+              Create one free →
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

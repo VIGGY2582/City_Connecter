@@ -1,229 +1,155 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { adminAPI, departmentAPI } from '../services/api';
+import { showToast } from './Dashboard';
+
+// ─── Custom Confirm Modal ─────────────────────────────────────────
+const ConfirmModal = ({ message, onConfirm, onCancel }) => (
+  <div className="modal-overlay" onClick={onCancel}>
+    <div className="modal-box" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
+      <div className="modal-header"><h3>⚠️ Confirm Action</h3></div>
+      <div className="modal-body">
+        <p style={{ color: 'var(--clr-text-2)', margin: 0 }}>{message}</p>
+      </div>
+      <div className="modal-footer">
+        <button className="btn-glass" onClick={onCancel}>Cancel</button>
+        <button className="btn-danger-glow" onClick={onConfirm}>Yes, Delete</button>
+      </div>
+    </div>
+  </div>
+);
 
 const UserManagement = () => {
-  const { user } = useAuth();
-  const [users, setUsers] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [editingUser, setEditingUser] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'citizen',
-    department_id: ''
-  });
+  const [users, setUsers]               = useState([]);
+  const [departments, setDepartments]   = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [search, setSearch]             = useState('');
+  const [editingUser, setEditingUser]   = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [formData, setFormData]         = useState({ name:'', email:'', password:'', role:'citizen', department_id:'' });
 
   useEffect(() => {
-    if (user?.role === 'admin') {
-      loadUsers();
-      loadDepartments();
-    }
-  }, [user]);
+    loadUsers();
+    loadDepartments();
+  }, []);
 
   const loadUsers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/users', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setUsers(data.data);
-      }
-    } catch (error) {
-      console.error('Error loading users:', error);
-    } finally {
-      setLoading(false);
-    }
+      const res = await adminAPI.getAllUsers();
+      setUsers(res.data.data);
+    } catch (e) { showToast('Failed to load users.', 'error'); }
+    finally { setLoading(false); }
   };
 
   const loadDepartments = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/departments', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setDepartments(data.data);
-      }
-    } catch (error) {
-      console.error('Error loading departments:', error);
-    }
+      const res = await departmentAPI.getAll();
+      setDepartments(res.data.data);
+    } catch (e) { console.error(e); }
   };
 
   const handleEdit = (user) => {
     setEditingUser(user);
-    setFormData({
-      name: user.name,
-      email: user.email,
-      password: '',
-      role: user.role,
-      department_id: user.department_id || ''
-    });
-    setShowEditModal(true);
+    setFormData({ name: user.name, email: user.email, password: '', role: user.role, department_id: user.department_id || '' });
   };
 
   const handleUpdate = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/users/${editingUser.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        loadUsers();
-        setShowEditModal(false);
-        setEditingUser(null);
-        setFormData({
-          name: '',
-          email: '',
-          password: '',
-          role: 'citizen',
-          department_id: ''
-        });
-        alert('User updated successfully!');
-      } else {
-        alert('Failed to update user');
-      }
-    } catch (error) {
-      console.error('Error updating user:', error);
-      alert('Error updating user');
+      await adminAPI.updateUser(editingUser.id, formData);
+      showToast('User updated successfully!', 'success');
+      setEditingUser(null);
+      loadUsers();
+    } catch (e) {
+      showToast(e.response?.data?.message || 'Failed to update user.', 'error');
     }
   };
 
-  const handleDelete = async (userId) => {
-    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      try {
-        const response = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-
-        const data = await response.json();
-        if (data.success) {
-          loadUsers();
-          alert('User deleted successfully!');
-        } else {
-          alert('Failed to delete user');
-        }
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        alert('Error deleting user');
-      }
+  const handleDelete = async (id) => {
+    try {
+      await adminAPI.deleteUser(id);
+      showToast('User deleted.', 'success');
+      setDeleteTarget(null);
+      loadUsers();
+    } catch (e) {
+      showToast('Failed to delete user.', 'error');
     }
   };
 
-  const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const roleBadge = (r) => ({ admin: 'badge-admin', department: 'badge-department', citizen: 'badge-citizen' }[r] || 'badge-citizen');
+  const roleIcon  = (r) => ({ admin: '🛡️', department: '🏛️', citizen: '👤' }[r] || '👤');
+
+  const filteredUsers = users.filter(u =>
+    u.name.toLowerCase().includes(search.toLowerCase()) ||
+    u.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  const getRoleBadgeColor = (role) => {
-    const colors = {
-      'admin': 'bg-danger text-white',
-      'department': 'bg-warning text-dark',
-      'citizen': 'bg-info text-white'
-    };
-    return colors[role] || 'bg-secondary text-white';
-  };
-
-  if (user?.role !== 'admin') {
-    return (
-      <div className="container mt-5">
-        <div className="alert alert-danger">
-          <h4>Access Denied</h4>
-          <p>You don't have permission to access user management.</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="text-center" style={{ padding: 60 }}>
+      <div className="spinner spinner-lg" style={{ margin: '0 auto' }} />
+    </div>
+  );
 
   return (
-    <div className="container mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>User Management</h2>
-        <div className="d-flex gap-3">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Search users..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ width: '250px' }}
-          />
+    <div>
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem' }}>👥 User Management</h2>
+          <p style={{ margin: '4px 0 0', color: 'var(--clr-text-2)', fontSize: '0.83rem' }}>
+            {users.length} total users
+          </p>
+        </div>
+        <div className="inp-icon-wrap" style={{ width: 260 }}>
+          <span className="inp-icon">🔍</span>
+          <input className="inp" placeholder="Search users..." value={search}
+            onChange={e => setSearch(e.target.value)} />
         </div>
       </div>
 
-      {loading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-        </div>
-      ) : (
-        <div className="table-responsive">
-          <table className="table table-striped table-hover">
-            <thead className="table-dark">
+      {/* Table */}
+      <div className="glass-card" style={{ overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="data-table">
+            <thead>
               <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Password</th>
-                <th>Role</th>
-                <th>Department</th>
-                <th>Created</th>
-                <th>Actions</th>
+                <th>User</th><th>Email</th><th>Role</th><th>Department</th><th>Joined</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map(user => (
-                <tr key={user.id}>
-                  <td>{user.id}</td>
-                  <td>{user.name}</td>
-                  <td>{user.email}</td>
+              {filteredUsers.map(u => (
+                <tr key={u.id}>
                   <td>
-                    <span className="text-muted">•••••••••</span>
+                    <div className="flex items-center gap-2">
+                      <div style={{
+                        width: 34, height: 34, borderRadius: '50%',
+                        background: 'var(--grad-primary)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.8rem', fontWeight: 700, color: '#fff', flexShrink: 0,
+                      }}>
+                        {u.name?.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{u.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--clr-text-3)' }}>ID #{u.id}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ color: 'var(--clr-text-2)', fontSize: '0.85rem' }}>{u.email}</td>
+                  <td>
+                    <span className={`badge ${roleBadge(u.role)}`}>{roleIcon(u.role)} {u.role}</span>
+                  </td>
+                  <td style={{ color: 'var(--clr-text-2)', fontSize: '0.85rem' }}>
+                    {u.department_name || <span style={{ color: 'var(--clr-text-3)', fontStyle: 'italic' }}>None</span>}
+                  </td>
+                  <td style={{ color: 'var(--clr-text-3)', fontSize: '0.82rem' }}>
+                    {new Date(u.created_at).toLocaleDateString()}
                   </td>
                   <td>
-                    <span className={`badge ${getRoleBadgeColor(user.role)}`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td>
-                    {user.department_name || (
-                      <span className="text-muted">None</span>
-                    )}
-                  </td>
-                  <td>{new Date(user.created_at).toLocaleDateString()}</td>
-                  <td>
-                    <div className="btn-group" role="group">
-                      <button
-                        className="btn btn-sm btn-outline-primary"
-                        onClick={() => handleEdit(user)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => handleDelete(user.id)}
-                        disabled={user.id === 1} // Prevent deleting main admin
-                      >
-                        Delete
+                    <div className="flex gap-2">
+                      <button className="btn-glass" style={{ fontSize: '0.78rem', padding: '6px 12px' }}
+                        onClick={() => handleEdit(u)}>✏️ Edit</button>
+                      <button className="btn-danger-glow" style={{ fontSize: '0.78rem', padding: '6px 12px' }}
+                        onClick={() => setDeleteTarget(u)} disabled={u.id === 1}>
+                        🗑️ Delete
                       </button>
                     </div>
                   </td>
@@ -231,96 +157,72 @@ const UserManagement = () => {
               ))}
             </tbody>
           </table>
+          {filteredUsers.length === 0 && (
+            <div className="text-center" style={{ padding: 40, color: 'var(--clr-text-2)' }}>No users found.</div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Edit User Modal */}
-      {showEditModal && (
-        <div className="modal fade show d-block" tabIndex="-1" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Edit User</h5>
-                <button type="button" className="btn-close" onClick={() => setShowEditModal(false)}>
-                  <span>&times;</span>
-                </button>
+      {/* Edit Modal */}
+      {editingUser && (
+        <div className="modal-overlay" onClick={() => setEditingUser(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>✏️ Edit User</h3>
+              <button className="btn-icon" onClick={() => setEditingUser(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="inp-label">Full Name</label>
+                <input className="inp" value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})} />
               </div>
-              <div className="modal-body">
-                <form>
-                  <div className="mb-3">
-                    <label className="form-label">Name</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Email</label>
-                    <input
-                      type="email"
-                      className="form-control"
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">New Password (leave empty to keep current)</label>
-                    <input
-                      type="password"
-                      className="form-control"
-                      value={formData.password}
-                      onChange={(e) => setFormData({...formData, password: e.target.value})}
-                      placeholder="Enter new password or leave empty"
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Role</label>
-                    <select
-                      className="form-select"
-                      value={formData.role}
-                      onChange={(e) => setFormData({...formData, role: e.target.value})}
-                    >
-                      <option value="citizen">Citizen</option>
-                      <option value="department">Department</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Department</label>
-                    <select
-                      className="form-select"
-                      value={formData.department_id}
-                      onChange={(e) => setFormData({...formData, department_id: e.target.value})}
-                    >
-                      <option value="">Select Department</option>
-                      {departments.map(dept => (
-                        <option key={dept.id} value={dept.id}>{dept.department_name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </form>
+              <div className="form-group">
+                <label className="inp-label">Email</label>
+                <input className="inp" type="email" value={formData.email}
+                  onChange={e => setFormData({...formData, email: e.target.value})} />
               </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowEditModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={handleUpdate}
-                >
-                  Update User
-                </button>
+              <div className="form-group">
+                <label className="inp-label">New Password (leave blank to keep)</label>
+                <input className="inp" type="password" placeholder="Enter new password..."
+                  value={formData.password}
+                  onChange={e => setFormData({...formData, password: e.target.value})} />
               </div>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="inp-label">Role</label>
+                  <select className="form-select-dark" value={formData.role}
+                    onChange={e => setFormData({...formData, role: e.target.value})}>
+                    <option value="citizen">👤 Citizen</option>
+                    <option value="department">🏛️ Department</option>
+                    <option value="admin">🛡️ Admin</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="inp-label">Department</label>
+                  <select className="form-select-dark" value={formData.department_id}
+                    onChange={e => setFormData({...formData, department_id: e.target.value})}>
+                    <option value="">None</option>
+                    {departments.map(d => <option key={d.id} value={d.id}>{d.department_name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-glass" onClick={() => setEditingUser(null)}>Cancel</button>
+              <button className="btn-primary-glow" onClick={handleUpdate}>💾 Save Changes</button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Delete Confirm */}
+      {deleteTarget && (
+        <ConfirmModal
+          message={`Are you sure you want to delete "${deleteTarget.name}"? This cannot be undone.`}
+          onConfirm={() => handleDelete(deleteTarget.id)}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   );
