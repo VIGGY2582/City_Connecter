@@ -41,6 +41,10 @@ City Connector is a full-stack web application that bridges the communication ga
   - *Why*: Bootstrap integration with React components
   - *Used for*: Forms, modals, navigation components
 
+- **Custom Professional Theme**
+  - *Why*: Modern, clean light theme for a professional user experience
+  - *Used for*: Application-wide aesthetic utilizing white, blue, and subtle gray tones, custom gradients, and refined shadows
+
 #### HTTP Client & State Management
 - **Axios** - Promise-based HTTP client
   - *Why*: Request/response transformation, error handling, interceptors
@@ -210,6 +214,12 @@ CREATE TABLE complaints (
    - Enforce business rules
 
 ## 🎨 Frontend Architecture
+
+### Design System & Theme
+The application features a modern, professional light theme built on top of our UI framework:
+- **Color Palette**: Clean light theme with professional blue accents and subtle gray backgrounds.
+- **Visuals**: Enhanced UI with custom gradients, soft shadows (`box-shadow`), and smooth transitions.
+- **Implementation**: Centralized CSS variables in `index.css` for consistent styling across all components.
 
 ### Component Structure
 
